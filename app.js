@@ -342,22 +342,22 @@ function loadFromURL() {
     const data = decodeZooState(encoded);
     if (!data) return false;
     
-    // Place buildings
+    // Place buildings (skip URL updates during loading)
     if (data.buildings && data.buildings.length > 0) {
         data.buildings.forEach(bData => {
             const buildingDef = BUILDINGS[bData.typeIndex];
             if (buildingDef) {
-                addBuilding(buildingDef, bData.x, bData.y);
+                addBuilding(buildingDef, bData.x, bData.y, true);
             }
         });
     }
     
-    // Place decorations
+    // Place decorations (skip URL updates during loading)
     if (data.decorations && data.decorations.length > 0) {
         data.decorations.forEach(dData => {
             const decorationDef = DECORATIONS[dData.typeIndex];
             if (decorationDef) {
-                addDecoration(decorationDef, dData.x, dData.y);
+                addDecoration(decorationDef, dData.x, dData.y, true);
             }
         });
     }
@@ -385,6 +385,9 @@ function loadFromURL() {
         renderAnimalList();
         updateSummaryTable();
     }
+    
+    // Now that everything is loaded, update the URL once
+    updateURL();
     
     return true;
 }
@@ -907,7 +910,7 @@ function handleGridDrop(e) {
 }
 
 // Add a building to the grid
-function addBuilding(buildingDef, gridX, gridY) {
+function addBuilding(buildingDef, gridX, gridY, skipURLUpdate = false) {
     const id = `${buildingDef.id}-${Date.now()}`;
     const building = {
         ...buildingDef,
@@ -922,12 +925,14 @@ function addBuilding(buildingDef, gridX, gridY) {
     // Update building list to show this building as used
     renderBuildingList();
     
-    // Update URL
-    updateURL();
+    // Update URL (unless we're loading from URL)
+    if (!skipURLUpdate) {
+        updateURL();
+    }
 }
 
 // Add a decoration to the grid
-function addDecoration(decorationDef, gridX, gridY) {
+function addDecoration(decorationDef, gridX, gridY, skipURLUpdate = false) {
     const id = `${decorationDef.id}-${Date.now()}`;
     const decoration = {
         ...decorationDef,
@@ -942,8 +947,10 @@ function addDecoration(decorationDef, gridX, gridY) {
     // Update decoration list to show count
     renderDecorationList();
     
-    // Update URL
-    updateURL();
+    // Update URL (unless we're loading from URL)
+    if (!skipURLUpdate) {
+        updateURL();
+    }
 }
 
 // Render a building on the SVG
