@@ -1,0 +1,24 @@
+[
+  {
+    "name": "Tickets",
+    "emoji": "🎫",
+    "width": 5,
+    "height": 4,
+    "color": "#4ECDC4"
+  },
+  {
+    "name": "Gift Shop",
+    "emoji": "🎁",
+    "width": 5,
+    "height": 4,
+    "color": "#FFE66D"
+  },
+  {
+    "name": "Restroom",
+    "emoji": "🚻",
+    "width": 5,
+    "height": 4,
+    "color": "#95E1D3"
+  }
+]
+

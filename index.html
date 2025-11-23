@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zoo Planner - Design Your Zoo!</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🦁 Zoo Planner 🦒</h1>
+            <div class="zoo-name-container">
+                <input type="text" id="zooName" class="zoo-name-input" placeholder="My Amazing Zoo" maxlength="50" />
+                <span class="edit-hint">Click to name your zoo!</span>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Left sidebar with buildings palette -->
+            <aside class="buildings-palette">
+                <h2>Buildings</h2>
+                <p class="instructions">Drag buildings onto the grid</p>
+                <div class="building-list" id="buildingList">
+                    <!-- Buildings will be generated here -->
+                </div>
+                
+                <div class="tools">
+                    <button id="startOver" class="clear-btn">
+                        🔄 Start Over
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main grid area -->
+            <main class="grid-container">
+                <svg id="zooGrid" class="zoo-grid">
+                    <!-- Grid and items will be rendered here -->
+                </svg>
+                
+                <div class="summary-section">
+                    <h2>📊 Enclosure Summary</h2>
+                    <table id="summaryTable" class="summary-table">
+                        <thead>
+                            <tr>
+                                <th>Animal</th>
+                                <th>Perimeter</th>
+                                <th>Area</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryBody">
+                            <tr class="empty-state">
+                                <td colspan="3">No enclosures yet - draw some animals!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+
+            <!-- Right sidebar with animal selection -->
+            <aside class="animals-info">
+                <h2>Pick an Animal</h2>
+                <p class="instructions">Click an animal, then draw its enclosure!</p>
+                <div class="animal-examples" id="animalList">
+                    <!-- Animals will be generated here -->
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+

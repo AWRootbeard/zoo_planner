@@ -1,0 +1,87 @@
+[
+  {
+    "name": "Elephant",
+    "emoji": "🐘",
+    "minPerimeter": 36,
+    "minArea": 80
+  },
+  {
+    "name": "Zebra",
+    "emoji": "🦓",
+    "minPerimeter": 28,
+    "minArea": 40
+  },
+  {
+    "name": "Tiger",
+    "emoji": "🐯",
+    "minPerimeter": 22,
+    "minArea": 30
+  },
+  {
+    "name": "Gorilla",
+    "emoji": "🦍",
+    "minPerimeter": 20,
+    "minArea": 25
+  },
+  {
+    "name": "Rhino",
+    "emoji": "🦏",
+    "minPerimeter": 30,
+    "minArea": 50
+  },
+  {
+    "name": "Bear",
+    "emoji": "🐻",
+    "minPerimeter": 20,
+    "minArea": 25
+  },
+  {
+    "name": "Panda",
+    "emoji": "🐼",
+    "minPerimeter": 22,
+    "minArea": 30
+  },
+  {
+    "name": "Giraffe",
+    "emoji": "🦒",
+    "minPerimeter": 30,
+    "minArea": 50
+  },
+  {
+    "name": "Lion",
+    "emoji": "🦁",
+    "minPerimeter": 22,
+    "minArea": 30
+  },
+  {
+    "name": "Seal",
+    "emoji": "🦭",
+    "minPerimeter": 24,
+    "minArea": 32
+  },
+  {
+    "name": "Hippo",
+    "emoji": "🦛",
+    "minPerimeter": 28,
+    "minArea": 40
+  },
+  {
+    "name": "Koala",
+    "emoji": "🐨",
+    "minPerimeter": 18,
+    "minArea": 20
+  },
+  {
+    "name": "Alligator",
+    "emoji": "🐊",
+    "minPerimeter": 24,
+    "minArea": 32
+  },
+  {
+    "name": "Kangaroo",
+    "emoji": "🦘",
+    "minPerimeter": 22,
+    "minArea": 30
+  }
+]
+
