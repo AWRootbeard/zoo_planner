@@ -417,17 +417,12 @@ header h1 {
     fill: rgba(76, 175, 80, 0.2);
     stroke: #4caf50;
     stroke-width: 2;
-    cursor: move;
     transition: all 0.2s;
 }
 
 .enclosure:hover {
     fill: rgba(76, 175, 80, 0.3);
     stroke-width: 3;
-}
-
-.enclosure:active {
-    cursor: grabbing;
 }
 
 .enclosure-invalid {
@@ -462,6 +457,11 @@ header h1 {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+}
+
+/* Resize cursors - these will be set dynamically via JS */
+.zoo-grid.resizing {
+    cursor: inherit !important;
 }
 
 .zoo-grid text {
@@ -796,6 +796,7 @@ header h1 {
     align-items: center;
     gap: 10px;
     font-weight: 600;
+    color: #333;
 }
 
 .summary-table .animal-emoji {

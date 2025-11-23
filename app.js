@@ -19,6 +19,7 @@ const state = {
     draggingBuilding: null, // Building being dragged from palette
     movingItem: null, // Item being moved on grid
     moveStartPos: null, // Starting position for distinguishing click vs drag
+    resizingEnclosure: null, // Enclosure being resized
     nextEnclosureId: 1,
     zooName: '', // Name of the zoo
 };
@@ -156,8 +157,8 @@ function updateSummaryTable() {
                     </div>
                 </div>
             </td>
-            <td class="perimeter-cell ${perimeterTooSmall ? 'too-small' : ''}">${perimeter} ${perimeterTooSmall ? '⚠️' : ''}</td>
-            <td class="area-cell ${areaTooSmall ? 'too-small' : ''}">${area} ${areaTooSmall ? '⚠️' : ''}</td>
+            <td class="perimeter-cell ${perimeterTooSmall ? 'too-small' : ''}">${perimeter}/${animal.minPerimeter} ${perimeterTooSmall ? '⚠️' : ''}</td>
+            <td class="area-cell ${areaTooSmall ? 'too-small' : ''}">${area}/${animal.minArea} ${areaTooSmall ? '⚠️' : ''}</td>
         `;
         
         tbody.appendChild(row);
@@ -316,8 +317,8 @@ function renderAnimalList() {
             <span class="emoji">${animal.emoji}</span>
             <div class="animal-info">
                 <strong>${animal.name}</strong>
-                <small>Min Area: ${animal.minArea}</small>
                 <small>Min Perimeter: ${animal.minPerimeter}</small>
+                <small>Min Area: ${animal.minArea}</small>
             </div>
             ${isUsed ? '<button class="delete-animal-btn" title="Delete this enclosure">🗑️</button>' : ''}
         `;
@@ -624,15 +625,32 @@ function renderBuilding(building) {
 // Grid interaction - Drawing enclosures or moving items
 function handleGridMouseDown(e) {
     const point = getGridPoint(e);
+    const precisePoint = getGridPoint(e, true); // Use precise position for edge detection
     
-    // Check if clicking on an existing enclosure
+    // Check if near an enclosure edge for resizing
+    const edgeDetect = detectEnclosureEdge(precisePoint.gridX, precisePoint.gridY);
+    if (edgeDetect) {
+        // Start resizing
+        state.resizingEnclosure = {
+            enclosure: edgeDetect.enclosure,
+            edge: edgeDetect.edge,
+            originalData: {
+                gridX: edgeDetect.enclosure.gridX,
+                gridY: edgeDetect.enclosure.gridY,
+                width: edgeDetect.enclosure.width,
+                height: edgeDetect.enclosure.height
+            }
+        };
+        state.moveStartPos = { x: e.clientX, y: e.clientY };
+        return;
+    }
+    
+    // Check if clicking on an existing enclosure (not near edge)
     const enclosureEl = e.target.closest('.enclosure');
     if (enclosureEl) {
         const id = enclosureEl.closest('g').dataset.enclosureId;
         const enclosure = state.enclosures.find(enc => enc.id === id);
         if (enclosure) {
-            // Store enclosure for potential delete dialog
-            enclosure._forDelete = true;
             // Start moving
             state.movingItem = {
                 type: 'enclosure',
@@ -682,12 +700,125 @@ function handleGridMouseDown(e) {
     renderDrawingEnclosure();
 }
 
+// Detect if mouse is near an enclosure edge
+function detectEnclosureEdge(mouseGridX, mouseGridY) {
+    const EDGE_THRESHOLD = 0.3; // Within 0.3 grid cells of edge
+    
+    for (const enclosure of state.enclosures) {
+        const left = enclosure.gridX;
+        const right = enclosure.gridX + enclosure.width;
+        const top = enclosure.gridY;
+        const bottom = enclosure.gridY + enclosure.height;
+        
+        // Check if mouse is inside the enclosure bounds (with threshold)
+        if (mouseGridX >= left - EDGE_THRESHOLD && mouseGridX <= right + EDGE_THRESHOLD &&
+            mouseGridY >= top - EDGE_THRESHOLD && mouseGridY <= bottom + EDGE_THRESHOLD) {
+            
+            const nearLeft = Math.abs(mouseGridX - left) <= EDGE_THRESHOLD;
+            const nearRight = Math.abs(mouseGridX - right) <= EDGE_THRESHOLD;
+            const nearTop = Math.abs(mouseGridY - top) <= EDGE_THRESHOLD;
+            const nearBottom = Math.abs(mouseGridY - bottom) <= EDGE_THRESHOLD;
+            
+            // Priority: corners first, then edges
+            // Only one horizontal and one vertical edge can be true at once
+            const isLeft = nearLeft && !nearRight;
+            const isRight = nearRight && !nearLeft;
+            const isTop = nearTop && !nearBottom;
+            const isBottom = nearBottom && !nearTop;
+            
+            // Only resize from edges, not inside
+            if (isLeft || isRight || isTop || isBottom) {
+                return {
+                    enclosure,
+                    edge: {
+                        left: isLeft,
+                        right: isRight,
+                        top: isTop,
+                        bottom: isBottom
+                    }
+                };
+            }
+        }
+    }
+    
+    return null;
+}
+
+// Update cursor based on resize edge
+function updateResizeCursor(edge) {
+    const svg = document.getElementById('zooGrid');
+    
+    if (!edge) {
+        svg.style.cursor = 'crosshair';
+        return;
+    }
+    
+    if (edge.left && edge.top) svg.style.cursor = 'nw-resize';
+    else if (edge.right && edge.top) svg.style.cursor = 'ne-resize';
+    else if (edge.left && edge.bottom) svg.style.cursor = 'sw-resize';
+    else if (edge.right && edge.bottom) svg.style.cursor = 'se-resize';
+    else if (edge.left || edge.right) svg.style.cursor = 'ew-resize';
+    else if (edge.top || edge.bottom) svg.style.cursor = 'ns-resize';
+}
+
 function handleGridMouseMove(e) {
+    // Handle resizing an enclosure
+    if (state.resizingEnclosure) {
+        const point = getGridPoint(e); // Regular point for snapping to grid
+        const resize = state.resizingEnclosure;
+        const enc = resize.enclosure;
+        
+        // Keep the cursor correct during resize
+        updateResizeCursor(resize.edge);
+        
+        let newX = enc.gridX;
+        let newY = enc.gridY;
+        let newWidth = enc.width;
+        let newHeight = enc.height;
+        
+        // Calculate new dimensions based on which edge is being dragged
+        if (resize.edge.right) {
+            newWidth = Math.max(1, point.gridX - enc.gridX + 1);
+        }
+        if (resize.edge.left) {
+            const oldRight = enc.gridX + enc.width;
+            newX = Math.min(point.gridX, oldRight - 1);
+            newWidth = oldRight - newX;
+        }
+        if (resize.edge.bottom) {
+            newHeight = Math.max(1, point.gridY - enc.gridY + 1);
+        }
+        if (resize.edge.top) {
+            const oldBottom = enc.gridY + enc.height;
+            newY = Math.min(point.gridY, oldBottom - 1);
+            newHeight = oldBottom - newY;
+        }
+        
+        // Constrain to grid
+        newX = Math.max(0, Math.min(newX, GRID_SIZE - 1));
+        newY = Math.max(0, Math.min(newY, GRID_SIZE - 1));
+        newWidth = Math.max(1, Math.min(newWidth, GRID_SIZE - newX));
+        newHeight = Math.max(1, Math.min(newHeight, GRID_SIZE - newY));
+        
+        // Update enclosure
+        enc.gridX = newX;
+        enc.gridY = newY;
+        enc.width = newWidth;
+        enc.height = newHeight;
+        
+        renderEnclosure(enc);
+        updateSummaryTable();
+        return;
+    }
+    
     // Handle moving an existing item
     if (state.movingItem) {
         // Only update if mouse is near the grid
         const svg = document.getElementById('zooGrid');
         const rect = svg.getBoundingClientRect();
+        
+        // Keep move cursor
+        svg.style.cursor = 'grabbing';
         
         // Check if mouse is reasonably close to the SVG
         const mouseX = e.clientX;
@@ -726,16 +857,63 @@ function handleGridMouseMove(e) {
     }
     
     // Handle drawing new enclosure
-    if (!state.drawing) return;
+    if (state.drawing) {
+        const point = getGridPoint(e);
+        state.drawing.currentX = point.gridX;
+        state.drawing.currentY = point.gridY;
+        renderDrawingEnclosure();
+        
+        // Keep crosshair cursor while drawing
+        const svg = document.getElementById('zooGrid');
+        svg.style.cursor = 'crosshair';
+        return;
+    }
     
-    const point = getGridPoint(e);
-    state.drawing.currentX = point.gridX;
-    state.drawing.currentY = point.gridY;
-    
-    renderDrawingEnclosure();
+    // Update cursor for resize handles when not doing anything else
+    const precisePoint = getGridPoint(e, true); // Use precise position for edge detection
+    const edgeDetect = detectEnclosureEdge(precisePoint.gridX, precisePoint.gridY);
+    updateResizeCursor(edgeDetect ? edgeDetect.edge : null);
 }
 
 function handleGridMouseUp(e) {
+    // Handle finishing a resize
+    if (state.resizingEnclosure) {
+        const distanceMoved = state.moveStartPos ? Math.sqrt(
+            Math.pow(e.clientX - state.moveStartPos.x, 2) +
+            Math.pow(e.clientY - state.moveStartPos.y, 2)
+        ) : 100;
+        
+        // If barely moved, treat as click for delete
+        if (distanceMoved < 5) {
+            const enc = state.resizingEnclosure.enclosure;
+            const orig = state.resizingEnclosure.originalData;
+            
+            // Restore original
+            enc.gridX = orig.gridX;
+            enc.gridY = orig.gridY;
+            enc.width = orig.width;
+            enc.height = orig.height;
+            
+            renderEnclosure(enc);
+            updateSummaryTable();
+            
+            const animal = ANIMALS.find(a => a.id === enc.animal);
+            const emoji = animal ? animal.emoji : '🦁';
+            const name = animal ? animal.name : 'Enclosure';
+            showConfirmDialog('Delete this enclosure?', () => {
+                deleteEnclosure(enc.id);
+            }, emoji, name);
+        }
+        
+        state.resizingEnclosure = null;
+        state.moveStartPos = null;
+        
+        // Reset cursor
+        const svg = document.getElementById('zooGrid');
+        svg.style.cursor = 'crosshair';
+        return;
+    }
+    
     // Handle finishing a move
     if (state.movingItem) {
         // Calculate distance moved from original mouse position
@@ -869,17 +1047,23 @@ function handleGridMouseLeave(e) {
 }
 
 // Get grid coordinates from mouse event
-function getGridPoint(e) {
+function getGridPoint(e, precise = false) {
     const svg = document.getElementById('zooGrid');
     const rect = svg.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    // Clamp to grid bounds
-    const gridX = Math.max(0, Math.min(GRID_SIZE - 1, Math.floor(x / CELL_SIZE)));
-    const gridY = Math.max(0, Math.min(GRID_SIZE - 1, Math.floor(y / CELL_SIZE)));
-    
-    return { gridX, gridY };
+    if (precise) {
+        // Return precise floating point position for edge detection
+        const gridX = Math.max(0, Math.min(GRID_SIZE, x / CELL_SIZE));
+        const gridY = Math.max(0, Math.min(GRID_SIZE, y / CELL_SIZE));
+        return { gridX, gridY };
+    } else {
+        // Return integer grid cell for normal operations
+        const gridX = Math.max(0, Math.min(GRID_SIZE - 1, Math.floor(x / CELL_SIZE)));
+        const gridY = Math.max(0, Math.min(GRID_SIZE - 1, Math.floor(y / CELL_SIZE)));
+        return { gridX, gridY };
+    }
 }
 
 // Render the temporary drawing enclosure
