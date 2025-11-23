@@ -25,6 +25,8 @@ const state = {
     moveStartPos: null, // Starting position for distinguishing click vs drag
     resizingEnclosure: null, // Enclosure being resized
     nextEnclosureId: 1,
+    nextBuildingId: 1,
+    nextDecorationId: 1,
     zooName: '', // Name of the zoo
 };
 
@@ -911,7 +913,7 @@ function handleGridDrop(e) {
 
 // Add a building to the grid
 function addBuilding(buildingDef, gridX, gridY, skipURLUpdate = false) {
-    const id = `${buildingDef.id}-${Date.now()}`;
+    const id = `${buildingDef.id}-${state.nextBuildingId++}`;
     const building = {
         ...buildingDef,
         id,  // Put id AFTER spread so it doesn't get overwritten
@@ -933,7 +935,7 @@ function addBuilding(buildingDef, gridX, gridY, skipURLUpdate = false) {
 
 // Add a decoration to the grid
 function addDecoration(decorationDef, gridX, gridY, skipURLUpdate = false) {
-    const id = `${decorationDef.id}-${Date.now()}`;
+    const id = `${decorationDef.id}-${state.nextDecorationId++}`;
     const decoration = {
         ...decorationDef,
         id,  // Put id AFTER spread so it doesn't get overwritten
