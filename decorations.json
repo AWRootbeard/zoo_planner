@@ -1,0 +1,94 @@
+[
+  {
+    "name": "Bench",
+    "emoji": "🪑",
+    "width": 2,
+    "height": 1,
+    "color": "#D4A373"
+  },
+  {
+    "name": "Tree",
+    "emoji": "🌳",
+    "width": 2,
+    "height": 2,
+    "color": "#8FBC8F"
+  },
+  {
+    "name": "Evergreen",
+    "emoji": "🌲",
+    "width": 2,
+    "height": 2,
+    "color": "#6B8E6B"
+  },
+  {
+    "name": "Palm Tree",
+    "emoji": "🌴",
+    "width": 2,
+    "height": 2,
+    "color": "#F4E4C1"
+  },
+  {
+    "name": "Tulip",
+    "emoji": "🌷",
+    "width": 1,
+    "height": 1,
+    "color": "#FFE6F0"
+  },
+  {
+    "name": "Sunflower",
+    "emoji": "🌻",
+    "width": 1,
+    "height": 1,
+    "color": "#FFFACD"
+  },
+  {
+    "name": "Potted Plant",
+    "emoji": "🪴",
+    "width": 1,
+    "height": 1,
+    "color": "#E8D5C4"
+  },
+  {
+    "name": "Cactus",
+    "emoji": "🌵",
+    "width": 1,
+    "height": 1,
+    "color": "#F5E6D3"
+  },
+  {
+    "name": "Fountain",
+    "emoji": "⛲",
+    "width": 3,
+    "height": 3,
+    "color": "#B0E0E6"
+  },
+  {
+    "name": "Pond",
+    "emoji": "🦆",
+    "width": 4,
+    "height": 3,
+    "color": "#AFEEEE"
+  },
+  {
+    "name": "Statue",
+    "emoji": "🗿",
+    "width": 2,
+    "height": 2,
+    "color": "#C0C0C0"
+  },
+  {
+    "name": "Flag",
+    "emoji": "🚩",
+    "width": 1,
+    "height": 1,
+    "color": "#FFE6E6"
+  },
+  {
+    "name": "Trash Can",
+    "emoji": "🗑️",
+    "width": 1,
+    "height": 1,
+    "color": "#E8E8E8"
+  }
+]
+

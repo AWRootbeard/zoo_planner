@@ -9,11 +9,15 @@
 <body>
     <div class="container">
         <header>
+            <div class="attribution">Wake the Turtle Games</div>
             <h1>🦁 Zoo Planner 🦒</h1>
             <div class="zoo-name-container">
                 <input type="text" id="zooName" class="zoo-name-input" placeholder="My Amazing Zoo" maxlength="50" />
                 <span class="edit-hint">Click to name your zoo!</span>
             </div>
+            <button id="shareBtn" class="share-btn" title="Copy link to share your zoo">
+                🔗 Share Zoo
+            </button>
         </header>
 
         <div class="main-content">
@@ -23,6 +27,12 @@
                 <p class="instructions">Drag buildings onto the grid</p>
                 <div class="building-list" id="buildingList">
                     <!-- Buildings will be generated here -->
+                </div>
+                
+                <h2>Decorations</h2>
+                <p class="instructions">Add decorations to make it pretty!</p>
+                <div class="building-list" id="decorationList">
+                    <!-- Decorations will be generated here -->
                 </div>
                 
                 <div class="tools">

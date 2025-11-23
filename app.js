@@ -7,6 +7,9 @@ const CELL_SIZE = 20; // Each square is 20px
 // Building definitions - loaded from JSON
 let BUILDINGS = [];
 
+// Decoration definitions - loaded from JSON
+let DECORATIONS = [];
+
 // Animal definitions - loaded from JSON
 let ANIMALS = [];
 
@@ -14,6 +17,7 @@ let ANIMALS = [];
 const state = {
     selectedAnimal: null, // Currently selected animal to draw
     placedBuildings: [],
+    placedDecorations: [],
     enclosures: [],
     drawing: null,
     draggingBuilding: null, // Building being dragged from palette
@@ -24,7 +28,7 @@ const state = {
     zooName: '', // Name of the zoo
 };
 
-// Check if a rectangle overlaps with any existing buildings or enclosures
+// Check if a rectangle overlaps with any existing buildings, decorations, or enclosures
 function checkOverlap(gridX, gridY, width, height, excludeId = null) {
     // Check buildings
     for (const building of state.placedBuildings) {
@@ -34,6 +38,18 @@ function checkOverlap(gridX, gridY, width, height, excludeId = null) {
               gridX >= building.gridX + building.width ||
               gridY + height <= building.gridY ||
               gridY >= building.gridY + building.height)) {
+            return true; // Overlap detected
+        }
+    }
+    
+    // Check decorations
+    for (const decoration of state.placedDecorations) {
+        if (decoration.id === excludeId) continue;
+        
+        if (!(gridX + width <= decoration.gridX ||
+              gridX >= decoration.gridX + decoration.width ||
+              gridY + height <= decoration.gridY ||
+              gridY >= decoration.gridY + decoration.height)) {
             return true; // Overlap detected
         }
     }
@@ -98,26 +114,57 @@ async function loadBuildings() {
     }
 }
 
+async function loadDecorations() {
+    try {
+        const response = await fetch('decorations.json');
+        const decorationsData = await response.json();
+        
+        // Convert to app format with id field
+        DECORATIONS = decorationsData.map(decoration => ({
+            id: decoration.name.toLowerCase().replace(/\s+/g, ''),
+            name: decoration.name,
+            emoji: decoration.emoji,
+            width: decoration.width,
+            height: decoration.height,
+            color: decoration.color
+        }));
+        
+        return true;
+    } catch (error) {
+        console.error('Error loading decorations:', error);
+        return false;
+    }
+}
+
 // Initialize the app
 async function init() {
     // Load data files first
-    const [animalsLoaded, buildingsLoaded] = await Promise.all([
+    const [animalsLoaded, buildingsLoaded, decorationsLoaded] = await Promise.all([
         loadAnimals(),
-        loadBuildings()
+        loadBuildings(),
+        loadDecorations()
     ]);
     
-    if (!animalsLoaded || !buildingsLoaded) {
+    if (!animalsLoaded || !buildingsLoaded || !decorationsLoaded) {
         alert('Error loading zoo data. Please refresh the page.');
         return;
     }
     
     setupGrid();
     setupBuildingsPalette();
+    setupDecorationsPalette();
     setupAnimalList();
     setupToolButtons();
     setupEventListeners();
     setupZooName();
-    updateSummaryTable();
+    setupShareButton();
+    
+    // Load zoo from URL if present
+    const loaded = loadFromURL();
+    
+    if (!loaded) {
+        updateSummaryTable();
+    }
 }
 
 // Update the summary table with all enclosures
@@ -157,12 +204,189 @@ function updateSummaryTable() {
                     </div>
                 </div>
             </td>
-            <td class="perimeter-cell ${perimeterTooSmall ? 'too-small' : ''}">${perimeter}/${animal.minPerimeter} ${perimeterTooSmall ? '⚠️' : ''}</td>
-            <td class="area-cell ${areaTooSmall ? 'too-small' : ''}">${area}/${animal.minArea} ${areaTooSmall ? '⚠️' : ''}</td>
+            <td class="perimeter-cell ${perimeterTooSmall ? 'too-small' : ''}">${perimeter}/${animal.minPerimeter}</td>
+            <td class="area-cell ${areaTooSmall ? 'too-small' : ''}">${area}/${animal.minArea}</td>
         `;
         
         tbody.appendChild(row);
     });
+}
+
+// Base36 encoding for compact URLs (0-9, a-z = 0-35)
+function toBase36(num) {
+    return num.toString(36);
+}
+
+function fromBase36(str) {
+    return parseInt(str, 36);
+}
+
+// Encode zoo state to URL parameters (very compact format)
+function encodeZooState() {
+    // Buildings: 3 chars each (typeIndex + x + y in base36)
+    // Decorations: 3 chars each (typeIndex + x + y in base36)
+    // Enclosures: 5 chars each (animalIndex + x + y + w + h in base36)
+    // Format: buildings.decorations.enclosures
+    
+    const buildingStr = state.placedBuildings.map(b => {
+        const typeId = b.id.split('-')[0];
+        const typeIndex = BUILDINGS.findIndex(building => building.id === typeId);
+        return toBase36(typeIndex) + toBase36(b.gridX) + toBase36(b.gridY);
+    }).join('');
+    
+    const decorationStr = state.placedDecorations.map(d => {
+        const typeId = d.id.split('-')[0];
+        const typeIndex = DECORATIONS.findIndex(decoration => decoration.id === typeId);
+        return toBase36(typeIndex) + toBase36(d.gridX) + toBase36(d.gridY);
+    }).join('');
+    
+    const enclosureStr = state.enclosures.map(e => {
+        const animalIndex = ANIMALS.findIndex(a => a.id === e.animal);
+        return toBase36(animalIndex) + toBase36(e.gridX) + toBase36(e.gridY) + 
+               toBase36(e.width) + toBase36(e.height);
+    }).join('');
+    
+    return buildingStr + '.' + decorationStr + '.' + enclosureStr;
+}
+
+// Decode zoo state from URL parameters (very compact format)
+function decodeZooState(compact) {
+    try {
+        const parts = compact.split('.');
+        const [buildingStr, decorationStr, enclosureStr] = parts.length === 3 ? parts : [parts[0], '', parts[1]];
+        
+        const buildings = [];
+        if (buildingStr && buildingStr.length > 0) {
+            for (let i = 0; i < buildingStr.length; i += 3) {
+                if (i + 3 <= buildingStr.length) {
+                    buildings.push({
+                        typeIndex: fromBase36(buildingStr[i]),
+                        x: fromBase36(buildingStr[i + 1]),
+                        y: fromBase36(buildingStr[i + 2])
+                    });
+                }
+            }
+        }
+        
+        const decorations = [];
+        if (decorationStr && decorationStr.length > 0) {
+            for (let i = 0; i < decorationStr.length; i += 3) {
+                if (i + 3 <= decorationStr.length) {
+                    decorations.push({
+                        typeIndex: fromBase36(decorationStr[i]),
+                        x: fromBase36(decorationStr[i + 1]),
+                        y: fromBase36(decorationStr[i + 2])
+                    });
+                }
+            }
+        }
+        
+        const enclosures = [];
+        if (enclosureStr && enclosureStr.length > 0) {
+            for (let i = 0; i < enclosureStr.length; i += 5) {
+                if (i + 5 <= enclosureStr.length) {
+                    enclosures.push({
+                        animalIndex: fromBase36(enclosureStr[i]),
+                        x: fromBase36(enclosureStr[i + 1]),
+                        y: fromBase36(enclosureStr[i + 2]),
+                        w: fromBase36(enclosureStr[i + 3]),
+                        h: fromBase36(enclosureStr[i + 4])
+                    });
+                }
+            }
+        }
+        
+        return { buildings, decorations, enclosures };
+    } catch (e) {
+        console.error('Error decoding zoo state:', e);
+        return null;
+    }
+}
+
+// Update URL with current state
+function updateURL() {
+    const url = new URL(window.location.href);
+    
+    // Clear existing params
+    url.search = '';
+    
+    // Zoo name first
+    if (state.zooName) {
+        url.searchParams.set('n', state.zooName);
+    }
+    
+    // Then zoo data
+    const encoded = encodeZooState();
+    if (encoded !== '.') { // Only add if there's actual data
+        url.searchParams.set('z', encoded);
+    }
+    
+    window.history.replaceState({}, '', url);
+}
+
+// Load zoo from URL if present
+function loadFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get('z');
+    const zooName = params.get('n');
+    
+    // Set zoo name
+    if (zooName) {
+        state.zooName = zooName;
+        document.getElementById('zooName').value = zooName;
+        document.title = `${zooName} - Zoo Planner`;
+    }
+    
+    if (!encoded) return false;
+    
+    const data = decodeZooState(encoded);
+    if (!data) return false;
+    
+    // Place buildings
+    if (data.buildings && data.buildings.length > 0) {
+        data.buildings.forEach(bData => {
+            const buildingDef = BUILDINGS[bData.typeIndex];
+            if (buildingDef) {
+                addBuilding(buildingDef, bData.x, bData.y);
+            }
+        });
+    }
+    
+    // Place decorations
+    if (data.decorations && data.decorations.length > 0) {
+        data.decorations.forEach(dData => {
+            const decorationDef = DECORATIONS[dData.typeIndex];
+            if (decorationDef) {
+                addDecoration(decorationDef, dData.x, dData.y);
+            }
+        });
+    }
+    
+    // Create enclosures
+    if (data.enclosures && data.enclosures.length > 0) {
+        data.enclosures.forEach(eData => {
+            const id = `enclosure-${state.nextEnclosureId++}`;
+            const animal = ANIMALS[eData.animalIndex];
+            if (!animal) return;
+            
+            const enclosure = {
+                id,
+                gridX: eData.x,
+                gridY: eData.y,
+                width: eData.w,
+                height: eData.h,
+                animal: animal.id
+            };
+            state.enclosures.push(enclosure);
+            renderEnclosure(enclosure);
+        });
+        
+        // Update UI
+        renderAnimalList();
+        updateSummaryTable();
+    }
+    
+    return true;
 }
 
 // Setup zoo name input
@@ -184,9 +408,62 @@ function setupZooName() {
         }
     });
     
-    // Save to state when changed
+    // Save to state and update URL when changed
     zooNameInput.addEventListener('change', () => {
         state.zooName = zooNameInput.value.trim();
+        updateURL();
+    });
+}
+
+// Setup share button
+function setupShareButton() {
+    const shareBtn = document.getElementById('shareBtn');
+    
+    shareBtn.addEventListener('click', async () => {
+        const url = new URL(window.location.href);
+        url.search = '';
+        
+        // Zoo name first
+        if (state.zooName) {
+            url.searchParams.set('n', state.zooName);
+        }
+        
+        // Then zoo data
+        const encoded = encodeZooState();
+        if (encoded !== '.') {
+            url.searchParams.set('z', encoded);
+        }
+        
+        const shareUrl = url.toString();
+        
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            
+            // Visual feedback
+            shareBtn.textContent = '✓ Copied!';
+            shareBtn.classList.add('copied');
+            
+            setTimeout(() => {
+                shareBtn.textContent = '🔗 Share Zoo';
+                shareBtn.classList.remove('copied');
+            }, 2000);
+        } catch (err) {
+            // Fallback for older browsers
+            const input = document.createElement('input');
+            input.value = shareUrl;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            
+            shareBtn.textContent = '✓ Copied!';
+            shareBtn.classList.add('copied');
+            
+            setTimeout(() => {
+                shareBtn.textContent = '🔗 Share Zoo';
+                shareBtn.classList.remove('copied');
+            }, 2000);
+        }
     });
 }
 
@@ -252,40 +529,108 @@ function renderBuildingList() {
     const usedBuildings = new Set(state.placedBuildings.map(b => b.id.split('-')[0])); // Extract building type
     
     BUILDINGS.forEach(building => {
+        const isRestroom = building.id === 'restroom';
         const isUsed = Array.from(usedBuildings).some(used => used.includes(building.id));
+        const restroomCount = isRestroom ? state.placedBuildings.filter(b => b.id.startsWith('restroom-')).length : 0;
         
         const div = document.createElement('div');
         div.className = 'building-item';
         div.dataset.buildingId = building.id;
         
-        if (isUsed) {
+        // Restrooms are special: never disabled, always draggable
+        if (isRestroom) {
+            div.draggable = true;
+            div.addEventListener('dragstart', handlePaletteDragStart);
+            div.addEventListener('dragend', handlePaletteDragEnd);
+        } else if (isUsed) {
             div.classList.add('used');
         } else {
             div.draggable = true;
-            // Drag from palette to grid
             div.addEventListener('dragstart', handlePaletteDragStart);
             div.addEventListener('dragend', handlePaletteDragEnd);
         }
         
-        div.innerHTML = `
+        // Build the HTML
+        let html = `
             <span class="building-emoji">${building.emoji}</span>
             <div class="building-info">
-                <div class="building-name">${building.name}</div>
+                <div class="building-name">${building.name}${isRestroom && restroomCount > 0 ? ` (${restroomCount})` : ''}</div>
                 <span class="building-size">${building.width}×${building.height} squares</span>
             </div>
-            ${isUsed ? '<button class="delete-building-btn" title="Delete this building">🗑️</button>' : ''}
         `;
         
+        // Add delete button for restrooms (if any placed) or regular buildings (if used)
+        if (isRestroom && restroomCount > 0) {
+            html += '<button class="delete-building-btn" title="Delete all restrooms">🗑️</button>';
+        } else if (!isRestroom && isUsed) {
+            html += '<button class="delete-building-btn" title="Delete this building">🗑️</button>';
+        }
+        
+        div.innerHTML = html;
+        
         // Delete button handler
-        if (isUsed) {
-            const deleteBtn = div.querySelector('.delete-building-btn');
+        const deleteBtn = div.querySelector('.delete-building-btn');
+        if (deleteBtn) {
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                deleteBuildingByType(building.id);
+                if (isRestroom) {
+                    deleteAllRestrooms();
+                } else {
+                    deleteBuildingByType(building.id);
+                }
             });
         }
         
         buildingList.appendChild(div);
+    });
+}
+
+// Setup decorations palette
+function setupDecorationsPalette() {
+    renderDecorationList();
+}
+
+// Render the decoration list
+function renderDecorationList() {
+    const decorationList = document.getElementById('decorationList');
+    decorationList.innerHTML = '';
+    
+    DECORATIONS.forEach(decoration => {
+        const decorationCount = state.placedDecorations.filter(d => d.id.startsWith(decoration.id + '-')).length;
+        
+        const div = document.createElement('div');
+        div.className = 'building-item'; // Reuse building-item styling
+        div.dataset.buildingId = decoration.id; // Use same data attribute for drag handling
+        div.draggable = true;
+        div.addEventListener('dragstart', handlePaletteDragStart);
+        div.addEventListener('dragend', handlePaletteDragEnd);
+        
+        // Build the HTML
+        let html = `
+            <span class="building-emoji">${decoration.emoji}</span>
+            <div class="building-info">
+                <div class="building-name">${decoration.name}${decorationCount > 0 ? ` (${decorationCount})` : ''}</div>
+                <span class="building-size">${decoration.width}×${decoration.height} squares</span>
+            </div>
+        `;
+        
+        // Add delete button if any are placed
+        if (decorationCount > 0) {
+            html += '<button class="delete-building-btn" title="Delete all">🗑️</button>';
+        }
+        
+        div.innerHTML = html;
+        
+        // Delete button handler
+        const deleteBtn = div.querySelector('.delete-building-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteAllDecorationType(decoration.id);
+            });
+        }
+        
+        decorationList.appendChild(div);
     });
 }
 
@@ -412,9 +757,12 @@ function handlePaletteDragStart(e) {
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('buildingId', buildingId);
     
-    // Store the building being dragged
-    const building = BUILDINGS.find(b => b.id === buildingId);
-    state.draggingBuilding = building;
+    // Store the building or decoration being dragged
+    let item = BUILDINGS.find(b => b.id === buildingId);
+    if (!item) {
+        item = DECORATIONS.find(d => d.id === buildingId);
+    }
+    state.draggingBuilding = item;
     
     // Make the drag image mostly transparent
     const dragItem = e.target.closest('.building-item');
@@ -509,17 +857,28 @@ function handleGridDrop(e) {
     // Remove preview
     removeBuildingPreview();
     
-    const buildingId = e.dataTransfer.getData('buildingId');
-    if (!buildingId) return;
+    const itemId = e.dataTransfer.getData('buildingId');
+    if (!itemId) return;
     
-    const building = BUILDINGS.find(b => b.id === buildingId);
-    if (!building) return;
+    // Check if it's a building or decoration
+    let item = BUILDINGS.find(b => b.id === itemId);
+    let isDecoration = false;
     
-    // Check if this building type is already placed
-    const alreadyPlaced = state.placedBuildings.some(b => b.id.includes(building.id));
-    if (alreadyPlaced) {
-        state.draggingBuilding = null;
-        return;
+    if (!item) {
+        item = DECORATIONS.find(d => d.id === itemId);
+        isDecoration = true;
+    }
+    
+    if (!item) return;
+    
+    // Check if this building type is already placed (except restrooms and decorations which can have multiples)
+    if (!isDecoration) {
+        const isRestroom = item.id === 'restroom';
+        const alreadyPlaced = state.placedBuildings.some(b => b.id.includes(item.id));
+        if (!isRestroom && alreadyPlaced) {
+            state.draggingBuilding = null;
+            return;
+        }
     }
     
     const svg = document.getElementById('zooGrid');
@@ -532,11 +891,15 @@ function handleGridDrop(e) {
     const gridY = Math.floor(y / CELL_SIZE);
     
     // Check if it fits and doesn't overlap
-    const fitsInGrid = gridX + building.width <= GRID_SIZE && gridY + building.height <= GRID_SIZE;
-    const hasOverlap = checkOverlap(gridX, gridY, building.width, building.height);
+    const fitsInGrid = gridX + item.width <= GRID_SIZE && gridY + item.height <= GRID_SIZE;
+    const hasOverlap = checkOverlap(gridX, gridY, item.width, item.height);
     
     if (fitsInGrid && !hasOverlap) {
-        addBuilding(building, gridX, gridY);
+        if (isDecoration) {
+            addDecoration(item, gridX, gridY);
+        } else {
+            addBuilding(item, gridX, gridY);
+        }
     }
     
     // Clear dragging state
@@ -547,8 +910,8 @@ function handleGridDrop(e) {
 function addBuilding(buildingDef, gridX, gridY) {
     const id = `${buildingDef.id}-${Date.now()}`;
     const building = {
-        id,
         ...buildingDef,
+        id,  // Put id AFTER spread so it doesn't get overwritten
         gridX,
         gridY,
     };
@@ -558,6 +921,29 @@ function addBuilding(buildingDef, gridX, gridY) {
     
     // Update building list to show this building as used
     renderBuildingList();
+    
+    // Update URL
+    updateURL();
+}
+
+// Add a decoration to the grid
+function addDecoration(decorationDef, gridX, gridY) {
+    const id = `${decorationDef.id}-${Date.now()}`;
+    const decoration = {
+        ...decorationDef,
+        id,  // Put id AFTER spread so it doesn't get overwritten
+        gridX,
+        gridY,
+    };
+    
+    state.placedDecorations.push(decoration);
+    renderBuilding(decoration); // Reuse renderBuilding since decorations look the same
+    
+    // Update decoration list to show count
+    renderDecorationList();
+    
+    // Update URL
+    updateURL();
 }
 
 // Render a building on the SVG
@@ -601,23 +987,59 @@ function renderBuilding(building) {
     
     group.appendChild(rect);
     
-    // Emoji
-    const emoji = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    emoji.setAttribute('x', x + width / 2);
-    emoji.setAttribute('y', y + height / 2 - 5);
-    emoji.setAttribute('class', 'building-label');
-    emoji.setAttribute('font-size', Math.min(width, height) * 0.4);
-    emoji.textContent = building.emoji;
-    group.appendChild(emoji);
+    // Emoji - special handling for bench (two chairs) vs other items
+    const isBench = building.id && building.id.includes('bench');
     
-    // Name
-    const name = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    name.setAttribute('x', x + width / 2);
-    name.setAttribute('y', y + height / 2 + 12);
-    name.setAttribute('class', 'building-label');
-    name.setAttribute('font-size', '10');
-    name.textContent = building.name;
-    group.appendChild(name);
+    if (isBench) {
+        // Bench: show two chair emojis side by side
+        const fontSize = Math.min(width, height) * 0.6;
+        const spacing = width / 3;
+        
+        const chair1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        chair1.setAttribute('x', x + spacing);
+        chair1.setAttribute('y', y + height / 2 + 2);
+        chair1.setAttribute('class', 'building-label');
+        chair1.setAttribute('font-size', fontSize);
+        chair1.textContent = building.emoji;
+        group.appendChild(chair1);
+        
+        const chair2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        chair2.setAttribute('x', x + width - spacing);
+        chair2.setAttribute('y', y + height / 2 + 2);
+        chair2.setAttribute('class', 'building-label');
+        chair2.setAttribute('font-size', fontSize);
+        chair2.textContent = building.emoji;
+        group.appendChild(chair2);
+    } else {
+        // Normal items: single centered emoji
+        const emoji = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        emoji.setAttribute('x', x + width / 2);
+        
+        if (building.height === 1) {
+            // For 1-tall items: larger emoji, perfectly centered
+            emoji.setAttribute('y', y + height / 2 + 2);
+            emoji.setAttribute('font-size', Math.min(width, height) * 0.6);
+        } else {
+            // For taller items: normal size with slight offset for text below
+            emoji.setAttribute('y', y + height / 2 - 5);
+            emoji.setAttribute('font-size', Math.min(width, height) * 0.4);
+        }
+        
+        emoji.setAttribute('class', 'building-label');
+        emoji.textContent = building.emoji;
+        group.appendChild(emoji);
+    }
+    
+    // Name (only show if tall enough - at least 2 grid cells high)
+    if (building.height >= 2) {
+        const name = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        name.setAttribute('x', x + width / 2);
+        name.setAttribute('y', y + height / 2 + 12);
+        name.setAttribute('class', 'building-label');
+        name.setAttribute('font-size', '10');
+        name.textContent = building.name;
+        group.appendChild(name);
+    }
     
     document.getElementById('buildings').appendChild(group);
 }
@@ -666,21 +1088,28 @@ function handleGridMouseDown(e) {
         return;
     }
     
-    // Check if clicking on a building
+    // Check if clicking on a building or decoration
     const buildingEl = e.target.closest('.building');
     if (buildingEl) {
         const id = buildingEl.closest('g').dataset.buildingId;
-        const building = state.placedBuildings.find(b => b.id === id);
-        if (building) {
+        let item = state.placedBuildings.find(b => b.id === id);
+        let itemType = 'building';
+        
+        if (!item) {
+            item = state.placedDecorations.find(d => d.id === id);
+            itemType = 'decoration';
+        }
+        
+        if (item) {
             // Start moving
             state.movingItem = {
-                type: 'building',
+                type: itemType,
                 id: id,
-                data: building,
-                originalX: building.gridX,
-                originalY: building.gridY,
-                offsetX: point.gridX - building.gridX,
-                offsetY: point.gridY - building.gridY,
+                data: item,
+                originalX: item.gridX,
+                originalY: item.gridY,
+                offsetX: point.gridX - item.gridX,
+                offsetY: point.gridY - item.gridY,
             };
             state.moveStartPos = { x: e.clientX, y: e.clientY };
         }
@@ -800,14 +1229,21 @@ function handleGridMouseMove(e) {
         newWidth = Math.max(1, Math.min(newWidth, GRID_SIZE - newX));
         newHeight = Math.max(1, Math.min(newHeight, GRID_SIZE - newY));
         
-        // Update enclosure
-        enc.gridX = newX;
-        enc.gridY = newY;
-        enc.width = newWidth;
-        enc.height = newHeight;
+        // Check for overlap with other items (excluding this enclosure)
+        const hasOverlap = checkOverlap(newX, newY, newWidth, newHeight, enc.id);
         
-        renderEnclosure(enc);
-        updateSummaryTable();
+        // Only update if no overlap
+        if (!hasOverlap) {
+            enc.gridX = newX;
+            enc.gridY = newY;
+            enc.width = newWidth;
+            enc.height = newHeight;
+            
+            renderEnclosure(enc);
+            updateSummaryTable();
+            updateURL();
+        }
+        // If there's overlap, just don't resize - keep current position
         return;
     }
     
@@ -872,7 +1308,27 @@ function handleGridMouseMove(e) {
     // Update cursor for resize handles when not doing anything else
     const precisePoint = getGridPoint(e, true); // Use precise position for edge detection
     const edgeDetect = detectEnclosureEdge(precisePoint.gridX, precisePoint.gridY);
-    updateResizeCursor(edgeDetect ? edgeDetect.edge : null);
+    
+    if (edgeDetect) {
+        // Near an edge - show resize cursor
+        updateResizeCursor(edgeDetect.edge);
+    } else {
+        // Check if over an enclosure (not near edge) - show move cursor
+        const regularPoint = getGridPoint(e);
+        const overEnclosure = state.enclosures.find(enc => 
+            regularPoint.gridX >= enc.gridX && 
+            regularPoint.gridX < enc.gridX + enc.width &&
+            regularPoint.gridY >= enc.gridY && 
+            regularPoint.gridY < enc.gridY + enc.height
+        );
+        
+        const svg = document.getElementById('zooGrid');
+        if (overEnclosure) {
+            svg.style.cursor = 'move';
+        } else {
+            svg.style.cursor = 'crosshair';
+        }
+    }
 }
 
 function handleGridMouseUp(e) {
@@ -937,6 +1393,11 @@ function handleGridMouseUp(e) {
                 showConfirmDialog('Delete this enclosure?', () => {
                     deleteEnclosure(item.id);
                 }, emoji, name);
+            } else if (item.type === 'decoration') {
+                renderBuilding(item.data); // Decorations render same as buildings
+                showConfirmDialog('Delete this decoration?', () => {
+                    deleteDecoration(item.id);
+                }, item.data.emoji, item.data.name);
             } else {
                 renderBuilding(item.data);
                 showConfirmDialog('Delete this building?', () => {
@@ -972,6 +1433,9 @@ function handleGridMouseUp(e) {
         } else {
             renderBuilding(item);
         }
+        
+        // Update URL with new position
+        updateURL();
         
         state.movingItem = null;
         state.moveStartPos = null;
@@ -1167,6 +1631,9 @@ function addEnclosure(gridX, gridY, width, height) {
     
     // Update summary table
     updateSummaryTable();
+    
+    // Update URL
+    updateURL();
 }
 
 // Render an enclosure
@@ -1315,6 +1782,22 @@ function deleteBuilding(id) {
     
     // Update building list to show buildings as available again
     renderBuildingList();
+    
+    // Update URL
+    updateURL();
+}
+
+// Delete a decoration
+function deleteDecoration(id) {
+    state.placedDecorations = state.placedDecorations.filter(d => d.id !== id);
+    const el = document.getElementById(id);
+    if (el) el.remove();
+    
+    // Update decoration list to show count
+    renderDecorationList();
+    
+    // Update URL
+    updateURL();
 }
 
 // Delete a building by type (no confirmation - from sidebar button)
@@ -1323,6 +1806,52 @@ function deleteBuildingByType(buildingType) {
     if (building) {
         deleteBuilding(building.id);
     }
+}
+
+// Delete all restrooms (no confirmation - from sidebar button)
+function deleteAllRestrooms() {
+    // Get all restroom IDs
+    const restroomIds = state.placedBuildings
+        .filter(b => b.id.startsWith('restroom-'))
+        .map(b => b.id);
+    
+    // Remove them from state
+    state.placedBuildings = state.placedBuildings.filter(b => !b.id.startsWith('restroom-'));
+    
+    // Remove from DOM
+    restroomIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    });
+    
+    // Update UI
+    renderBuildingList();
+    
+    // Update URL
+    updateURL();
+}
+
+// Delete all decorations of a type (no confirmation - from sidebar button)
+function deleteAllDecorationType(decorationType) {
+    // Get all decoration IDs of this type
+    const decorationIds = state.placedDecorations
+        .filter(d => d.id.startsWith(decorationType + '-'))
+        .map(d => d.id);
+    
+    // Remove them from state
+    state.placedDecorations = state.placedDecorations.filter(d => !d.id.startsWith(decorationType + '-'));
+    
+    // Remove from DOM
+    decorationIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    });
+    
+    // Update UI
+    renderDecorationList();
+    
+    // Update URL
+    updateURL();
 }
 
 // Delete an enclosure
@@ -1336,6 +1865,9 @@ function deleteEnclosure(id) {
     
     // Update summary table
     updateSummaryTable();
+    
+    // Update URL
+    updateURL();
 }
 
 // Delete an enclosure by animal type (no confirmation - from sidebar button)
@@ -1350,6 +1882,7 @@ function deleteEnclosureByAnimal(animalId) {
 function startOver() {
     showConfirmDialog('Are you sure you want to start over? This will clear everything!', () => {
         state.placedBuildings = [];
+        state.placedDecorations = [];
         state.enclosures = [];
         state.nextEnclosureId = 1;
         state.selectedAnimal = null;
@@ -1360,12 +1893,16 @@ function startOver() {
         document.getElementById('zooName').value = '';
         document.title = 'Zoo Planner - Design Your Zoo!';
         
-        // Reset both lists
+        // Reset all lists
         renderAnimalList();
         renderBuildingList();
+        renderDecorationList();
         
         // Update summary table
         updateSummaryTable();
+        
+        // Clear URL parameters
+        window.history.replaceState({}, '', window.location.pathname);
     }, '🔄', 'Start Over');
 }
 

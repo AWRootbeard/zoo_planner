@@ -25,11 +25,48 @@ header {
     color: white;
     padding: 30px;
     text-align: center;
+    position: relative;
 }
 
 header h1 {
     font-size: 2.5em;
     margin-bottom: 15px;
+}
+
+.attribution {
+    position: absolute;
+    top: 10px;
+    left: 15px;
+    font-size: 0.85em;
+    font-weight: 600;
+    user-select: none;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 10px 12px 10px 54px;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+}
+
+.attribution::before {
+    content: '🐢';
+    font-size: 2.2em;
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    line-height: 1;
+}
+
+.attribution::after {
+    content: '💤';
+    font-size: 1em;
+    position: absolute;
+    left: 34px;
+    top: 4px;
 }
 
 .zoo-name-container {
@@ -84,6 +121,41 @@ header h1 {
     display: block;
 }
 
+.share-btn {
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 10px;
+    color: #667eea;
+    font-weight: 600;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.3s;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.share-btn:hover {
+    background: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.share-btn:active {
+    transform: translateY(0);
+}
+
+.share-btn.copied {
+    background: #4caf50;
+    color: white;
+    border-color: #4caf50;
+}
+
 .main-content {
     display: grid;
     grid-template-columns: 250px 1fr 280px;
@@ -97,6 +169,28 @@ header h1 {
     background: #f8f9fa;
     border-radius: 15px;
     padding: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #d0d0d0 #f8f9fa;
+}
+
+.buildings-palette::-webkit-scrollbar {
+    width: 8px;
+}
+
+.buildings-palette::-webkit-scrollbar-track {
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.buildings-palette::-webkit-scrollbar-thumb {
+    background: #d0d0d0;
+    border-radius: 10px;
+}
+
+.buildings-palette::-webkit-scrollbar-thumb:hover {
+    background: #b8b8b8;
 }
 
 .buildings-palette h2,
@@ -104,6 +198,10 @@ header h1 {
     font-size: 1.3em;
     margin-bottom: 10px;
     color: #333;
+}
+
+.buildings-palette h2:not(:first-of-type) {
+    margin-top: 25px;
 }
 
 .instructions {
@@ -151,10 +249,10 @@ header h1 {
 }
 
 .building-item.used {
-    opacity: 0.6;
     cursor: default;
     background: #f5f5f5;
     border-color: #ccc;
+    filter: grayscale(50%);
 }
 
 .building-info {
@@ -258,7 +356,28 @@ header h1 {
     background: #f8f9fa;
     border-radius: 15px;
     padding: 20px;
+    max-height: 90vh;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #d0d0d0 #f8f9fa;
+}
+
+.animals-info::-webkit-scrollbar {
+    width: 8px;
+}
+
+.animals-info::-webkit-scrollbar-track {
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.animals-info::-webkit-scrollbar-thumb {
+    background: #d0d0d0;
+    border-radius: 10px;
+}
+
+.animals-info::-webkit-scrollbar-thumb:hover {
+    background: #b8b8b8;
 }
 
 .animal-examples {
@@ -313,10 +432,10 @@ header h1 {
 }
 
 .animal-card.used {
-    opacity: 0.6;
     cursor: default;
     background: #f5f5f5;
     border-color: #ccc;
+    filter: grayscale(50%);
 }
 
 .animal-card.used:hover {
@@ -469,6 +588,10 @@ header h1 {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    pointer-events: none;
+}
+
+.zoo-grid foreignObject {
     pointer-events: none;
 }
 
@@ -743,6 +866,28 @@ header h1 {
     padding: 20px;
     width: 100%;
     max-width: 600px;
+    max-height: 400px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #d0d0d0 #f8f9fa;
+}
+
+.summary-section::-webkit-scrollbar {
+    width: 8px;
+}
+
+.summary-section::-webkit-scrollbar-track {
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.summary-section::-webkit-scrollbar-thumb {
+    background: #d0d0d0;
+    border-radius: 10px;
+}
+
+.summary-section::-webkit-scrollbar-thumb:hover {
+    background: #b8b8b8;
 }
 
 .summary-section h2 {
