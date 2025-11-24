@@ -204,6 +204,45 @@ header h1 {
     margin-top: 25px;
 }
 
+.collapsible-header {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.collapsible-header:hover {
+    color: #667eea;
+}
+
+.collapse-icon {
+    display: inline-block;
+    transition: transform 0.3s;
+    font-size: 0.8em;
+}
+
+.collapsible-header:not(.collapsed) .collapse-icon {
+    transform: rotate(90deg);
+}
+
+.collapsible-content {
+    max-height: 5000px;
+    overflow: visible;
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    opacity: 1;
+}
+
+.collapsible-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+}
+
 .instructions {
     font-size: 0.85em;
     color: #666;
@@ -576,6 +615,7 @@ header h1 {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    overflow: visible;
 }
 
 /* Resize cursors - these will be set dynamically via JS */
@@ -609,6 +649,8 @@ header h1 {
 .building-label {
     fill: white;
     text-anchor: middle;
+    paint-order: stroke fill;
+    stroke-linejoin: round;
 }
 
 .enclosure-label {

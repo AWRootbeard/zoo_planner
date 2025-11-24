@@ -160,6 +160,7 @@ async function init() {
     setupEventListeners();
     setupZooName();
     setupShareButton();
+    setupCollapsibleSections();
     
     // Load zoo from URL if present
     const loaded = loadFromURL();
@@ -248,14 +249,19 @@ function encodeZooState() {
                toBase36(e.width) + toBase36(e.height);
     }).join('');
     
-    return buildingStr + '.' + decorationStr + '.' + enclosureStr;
+    // Remove trailing periods to prevent issues when sharing on Slack
+    return (buildingStr + '.' + decorationStr + '.' + enclosureStr).replace(/\.+$/, '');
 }
 
 // Decode zoo state from URL parameters (very compact format)
 function decodeZooState(compact) {
     try {
         const parts = compact.split('.');
-        const [buildingStr, decorationStr, enclosureStr] = parts.length === 3 ? parts : [parts[0], '', parts[1]];
+        // Always assume new 3-part format: buildings.decorations.enclosures
+        // Pad with empty strings if trailing sections were stripped
+        const buildingStr = parts[0] || '';
+        const decorationStr = parts[1] || '';
+        const enclosureStr = parts[2] || '';
         
         const buildings = [];
         if (buildingStr && buildingStr.length > 0) {
@@ -319,7 +325,7 @@ function updateURL() {
     
     // Then zoo data
     const encoded = encodeZooState();
-    if (encoded !== '.') { // Only add if there's actual data
+    if (encoded && encoded !== '.' && encoded !== '..') { // Only add if there's actual data
         url.searchParams.set('z', encoded);
     }
     
@@ -435,7 +441,7 @@ function setupShareButton() {
         
         // Then zoo data
         const encoded = encodeZooState();
-        if (encoded !== '.') {
+        if (encoded && encoded !== '.' && encoded !== '..') {
             url.searchParams.set('z', encoded);
         }
         
@@ -470,6 +476,22 @@ function setupShareButton() {
             }, 2000);
         }
     });
+}
+
+// Setup collapsible sections
+function setupCollapsibleSections() {
+    const decorationsHeader = document.getElementById('decorationsHeader');
+    const decorationsContent = document.getElementById('decorationsContent');
+    
+    decorationsHeader.addEventListener('click', () => {
+        // Toggle collapsed class on header and content
+        decorationsHeader.classList.toggle('collapsed');
+        decorationsContent.classList.toggle('collapsed');
+    });
+    
+    // Start collapsed by default
+    decorationsHeader.classList.add('collapsed');
+    decorationsContent.classList.add('collapsed');
 }
 
 // Create the SVG grid
@@ -1006,17 +1028,19 @@ function renderBuilding(building) {
         
         const chair1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         chair1.setAttribute('x', x + spacing);
-        chair1.setAttribute('y', y + height / 2 + 2);
+        chair1.setAttribute('y', y + height / 2);
         chair1.setAttribute('class', 'building-label');
         chair1.setAttribute('font-size', fontSize);
+        chair1.setAttribute('dominant-baseline', 'central'); // Better vertical centering
         chair1.textContent = building.emoji;
         group.appendChild(chair1);
         
         const chair2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         chair2.setAttribute('x', x + width - spacing);
-        chair2.setAttribute('y', y + height / 2 + 2);
+        chair2.setAttribute('y', y + height / 2);
         chair2.setAttribute('class', 'building-label');
         chair2.setAttribute('font-size', fontSize);
+        chair2.setAttribute('dominant-baseline', 'central'); // Better vertical centering
         chair2.textContent = building.emoji;
         group.appendChild(chair2);
     } else {
@@ -1026,12 +1050,14 @@ function renderBuilding(building) {
         
         if (building.height === 1) {
             // For 1-tall items: larger emoji, perfectly centered
-            emoji.setAttribute('y', y + height / 2 + 2);
+            emoji.setAttribute('y', y + height / 2);
             emoji.setAttribute('font-size', Math.min(width, height) * 0.6);
+            emoji.setAttribute('dominant-baseline', 'central'); // Better vertical centering
         } else {
             // For taller items: normal size with slight offset for text below
             emoji.setAttribute('y', y + height / 2 - 5);
             emoji.setAttribute('font-size', Math.min(width, height) * 0.4);
+            emoji.setAttribute('dominant-baseline', 'middle'); // Better vertical centering
         }
         
         emoji.setAttribute('class', 'building-label');
@@ -1697,22 +1723,24 @@ function renderEnclosure(enclosure) {
         const minDimension = Math.min(width, height);
         const emojiSize = minDimension * 0.35; // Slightly bigger now since we have more space
         
-        // Make foreignObject wider to avoid clipping
+        // Make foreignObject wider and taller to avoid clipping on different systems
         const foreignObjectWidth = emojiSize * 1.5;
+        const foreignObjectHeight = emojiSize * 1.5; // Increased from 1.2 to prevent top cropping
         
         const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
         foreignObject.setAttribute('x', x + (width - foreignObjectWidth) / 2);
-        foreignObject.setAttribute('y', y + (height - emojiSize) / 2 - emojiSize * 0.2);
+        foreignObject.setAttribute('y', y + (height - foreignObjectHeight) / 2 - emojiSize * 0.15);
         foreignObject.setAttribute('width', foreignObjectWidth);
-        foreignObject.setAttribute('height', emojiSize * 1.2);
+        foreignObject.setAttribute('height', foreignObjectHeight);
         
         const emojiDiv = document.createElement('div');
         emojiDiv.style.fontSize = emojiSize + 'px';
-        emojiDiv.style.lineHeight = emojiSize + 'px';
+        emojiDiv.style.lineHeight = '1.3'; // Use ratio instead of fixed px to prevent cropping
         emojiDiv.style.textAlign = 'center';
         emojiDiv.style.userSelect = 'none';
         emojiDiv.style.pointerEvents = 'none';
         emojiDiv.style.overflow = 'visible';
+        emojiDiv.style.paddingTop = '0.1em'; // Add slight top padding for systems with tall emojis
         emojiDiv.textContent = animal.emoji;
         
         foreignObject.appendChild(emojiDiv);
