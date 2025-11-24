@@ -1311,8 +1311,8 @@ function renderBuilding(building) {
     if (building.height >= 2) {
         const name = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         name.setAttribute('x', x + width / 2);
-        name.setAttribute('y', y + height / 2 + 12);
-        name.setAttribute('class', 'building-label');
+        name.setAttribute('y', y + height - 8); // Position near bottom of building
+        name.setAttribute('class', 'building-name-label');
         name.setAttribute('font-size', '10');
         name.textContent = building.name;
         group.appendChild(name);
