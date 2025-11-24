@@ -501,9 +501,21 @@ function setupCollapsibleSections() {
 function setupMathPracticeToggle() {
     const toggle = document.getElementById('mathPracticeToggle');
     
-    toggle.addEventListener('change', () => {
-        state.mathPractice = toggle.checked;
+    if (!toggle) {
+        console.error('Math practice toggle not found!');
+        return;
+    }
+    
+    // Set initial state
+    state.mathPractice = toggle.checked;
+    
+    // Handle change event on checkbox
+    toggle.addEventListener('change', (e) => {
+        state.mathPractice = e.target.checked;
+        console.log('Math practice mode:', state.mathPractice ? 'ON' : 'OFF');
     });
+    
+    console.log('Math practice toggle initialized, initial state:', state.mathPractice ? 'ON' : 'OFF');
 }
 
 // Show math practice modal
