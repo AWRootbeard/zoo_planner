@@ -156,6 +156,67 @@ header h1 {
     border-color: #4caf50;
 }
 
+.math-practice-toggle-container {
+    position: absolute;
+    bottom: 15px;
+    right: 30px;
+}
+
+.math-practice-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.math-practice-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-slider {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    background: rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 13px;
+    transition: all 0.3s;
+    display: inline-block;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 2px;
+    top: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.math-practice-toggle input[type="checkbox"]:checked + .toggle-slider {
+    background: rgba(76, 175, 80, 0.9);
+    border-color: rgba(76, 175, 80, 1);
+}
+
+.math-practice-toggle input[type="checkbox"]:checked + .toggle-slider::before {
+    transform: translateX(24px);
+}
+
+.toggle-label {
+    color: white;
+    font-weight: 600;
+    font-size: 0.95em;
+    white-space: nowrap;
+}
+
 .main-content {
     display: grid;
     grid-template-columns: 250px 1fr 280px;
@@ -1018,6 +1079,225 @@ header h1 {
 
 .summary-table .warning-row {
     background: rgba(255, 193, 7, 0.1);
+}
+
+/* Math Practice Modal */
+.math-practice-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    animation: fadeIn 0.2s;
+}
+
+.math-practice-content {
+    background: white;
+    border-radius: 20px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s;
+}
+
+.math-practice-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px 30px;
+    border-radius: 20px 20px 0 0;
+    position: relative;
+    text-align: center;
+}
+
+.math-practice-emoji {
+    font-size: 4em;
+    line-height: 1;
+    margin-bottom: 10px;
+}
+
+.math-practice-header h3 {
+    margin: 0;
+    font-size: 1.5em;
+}
+
+.math-practice-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.math-practice-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.math-practice-body {
+    padding: 30px;
+}
+
+.math-practice-instructions {
+    font-size: 1.1em;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.math-practice-visual {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.math-practice-rectangle {
+    display: block;
+}
+
+.math-practice-dimensions {
+    text-align: center;
+    font-size: 1.1em;
+    color: #667eea;
+    margin-bottom: 25px;
+    padding: 12px;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 8px;
+}
+
+.math-practice-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.math-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.math-input-group label {
+    font-weight: 600;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.math-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.math-input {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 1.2em;
+    border: 3px solid #ddd;
+    border-radius: 10px;
+    outline: none;
+    transition: all 0.2s;
+    font-family: inherit;
+    background: white;
+    color: #333;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+
+/* Remove default number input spinners for Webkit browsers */
+.math-input::-webkit-outer-spin-button,
+.math-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.math-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.math-input.correct {
+    border-color: #4caf50;
+    background: rgba(76, 175, 80, 0.05);
+    color: #2e7d32;
+}
+
+.math-input.incorrect {
+    border-color: #f5576c;
+    background: rgba(245, 87, 108, 0.05);
+    color: #c62828;
+}
+
+.math-feedback {
+    font-size: 1.5em;
+    width: 30px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.math-feedback.correct {
+    color: #4caf50;
+}
+
+.math-feedback.incorrect {
+    color: #f5576c;
+}
+
+.math-practice-build-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.2em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.math-practice-build-btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.math-practice-build-btn:not(:disabled):active {
+    transform: translateY(0);
+}
+
+.math-practice-build-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #ccc;
 }
 
 /* Responsive */

@@ -28,6 +28,8 @@ const state = {
     nextBuildingId: 1,
     nextDecorationId: 1,
     zooName: '', // Name of the zoo
+    mathPractice: true, // Math practice mode enabled by default
+    pendingEnclosure: null, // Enclosure waiting for math validation
 };
 
 // Check if a rectangle overlaps with any existing buildings, decorations, or enclosures
@@ -161,6 +163,7 @@ async function init() {
     setupZooName();
     setupShareButton();
     setupCollapsibleSections();
+    setupMathPracticeToggle();
     
     // Load zoo from URL if present
     const loaded = loadFromURL();
@@ -492,6 +495,245 @@ function setupCollapsibleSections() {
     // Start collapsed by default
     decorationsHeader.classList.add('collapsed');
     decorationsContent.classList.add('collapsed');
+}
+
+// Setup math practice toggle
+function setupMathPracticeToggle() {
+    const toggle = document.getElementById('mathPracticeToggle');
+    
+    toggle.addEventListener('change', () => {
+        state.mathPractice = toggle.checked;
+    });
+}
+
+// Show math practice modal
+function showMathPracticeModal(gridX, gridY, width, height, animalId, enclosureToResize = null) {
+    const animal = ANIMALS.find(a => a.id === animalId);
+    if (!animal) return;
+    
+    const correctPerimeter = 2 * (width + height);
+    const correctArea = width * height;
+    const isResizing = enclosureToResize !== null;
+    
+    const modal = document.createElement('div');
+    modal.className = 'math-practice-modal';
+    modal.innerHTML = `
+        <div class="math-practice-content">
+            <div class="math-practice-header">
+                <div class="math-practice-emoji">${animal.emoji}</div>
+                <h3>${isResizing ? 'Resize' : 'Build'} ${animal.name} Enclosure</h3>
+                <button class="math-practice-close">✕</button>
+            </div>
+            
+            <div class="math-practice-body">
+                <p class="math-practice-instructions">
+                    Calculate the perimeter and area of this enclosure:
+                </p>
+                
+                <div class="math-practice-visual">
+                    <svg class="math-practice-rectangle" viewBox="0 0 200 150" width="200" height="150">
+                        <rect x="40" y="30" width="120" height="90" 
+                              fill="rgba(102, 126, 234, 0.2)" 
+                              stroke="#667eea" 
+                              stroke-width="3" 
+                              rx="5"/>
+                        
+                        <!-- Top edge -->
+                        <line x1="40" y1="20" x2="160" y2="20" stroke="#333" stroke-width="2"/>
+                        <text x="100" y="15" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">${width}</text>
+                        
+                        <!-- Right edge -->
+                        <line x1="170" y1="30" x2="170" y2="120" stroke="#333" stroke-width="2"/>
+                        <text x="180" y="75" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">${height}</text>
+                        
+                        <!-- Bottom edge -->
+                        <line x1="40" y1="130" x2="160" y2="130" stroke="#333" stroke-width="2"/>
+                        <text x="100" y="145" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">${width}</text>
+                        
+                        <!-- Left edge -->
+                        <line x1="30" y1="30" x2="30" y2="120" stroke="#333" stroke-width="2"/>
+                        <text x="20" y="75" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">${height}</text>
+                    </svg>
+                </div>
+                
+                <div class="math-practice-dimensions">
+                    <strong>Dimensions:</strong> ${width} × ${height} squares
+                </div>
+                
+                <div class="math-practice-inputs">
+                    <div class="math-input-group">
+                        <label for="perimeterInput">Perimeter:</label>
+                        <div class="math-input-wrapper">
+                            <input type="number" id="perimeterInput" class="math-input" min="0" step="1" placeholder="?">
+                            <span class="math-feedback" id="perimeterFeedback"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="math-input-group">
+                        <label for="areaInput">Area:</label>
+                        <div class="math-input-wrapper">
+                            <input type="number" id="areaInput" class="math-input" min="0" step="1" placeholder="?">
+                            <span class="math-feedback" id="areaFeedback"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="math-practice-build-btn" id="mathBuildBtn" disabled>
+                    ${isResizing ? '✓ Resize' : '🏗️ Build'} ${animal.name} Enclosure
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Store pending enclosure data (includes enclosure reference for resize mode)
+    // For resize, the enclosure already has new dimensions, but we need originals to revert
+    const originalDimensions = enclosureToResize ? {
+        // These will be set by the caller when in resize mode
+        gridX: enclosureToResize.originalGridX !== undefined ? enclosureToResize.originalGridX : enclosureToResize.gridX,
+        gridY: enclosureToResize.originalGridY !== undefined ? enclosureToResize.originalGridY : enclosureToResize.gridY,
+        width: enclosureToResize.originalWidth !== undefined ? enclosureToResize.originalWidth : enclosureToResize.width,
+        height: enclosureToResize.originalHeight !== undefined ? enclosureToResize.originalHeight : enclosureToResize.height
+    } : null;
+    
+    state.pendingEnclosure = { 
+        gridX, 
+        gridY, 
+        width, 
+        height, 
+        animalId, 
+        enclosureToResize,
+        originalDimensions
+    };
+    
+    // Get input elements
+    const perimeterInput = modal.querySelector('#perimeterInput');
+    const areaInput = modal.querySelector('#areaInput');
+    const perimeterFeedback = modal.querySelector('#perimeterFeedback');
+    const areaFeedback = modal.querySelector('#areaFeedback');
+    const buildBtn = modal.querySelector('#mathBuildBtn');
+    const closeBtn = modal.querySelector('.math-practice-close');
+    
+    let perimeterCorrect = false;
+    let areaCorrect = false;
+    
+    // Validation function
+    function validateInputs() {
+        // Check perimeter
+        const perimeterValue = parseInt(perimeterInput.value);
+        if (perimeterInput.value && !isNaN(perimeterValue)) {
+            if (perimeterValue === correctPerimeter) {
+                perimeterCorrect = true;
+                perimeterFeedback.textContent = '✓';
+                perimeterFeedback.className = 'math-feedback correct';
+                perimeterInput.classList.add('correct');
+                perimeterInput.classList.remove('incorrect');
+            } else {
+                perimeterCorrect = false;
+                perimeterFeedback.textContent = '✗';
+                perimeterFeedback.className = 'math-feedback incorrect';
+                perimeterInput.classList.add('incorrect');
+                perimeterInput.classList.remove('correct');
+            }
+        } else {
+            perimeterCorrect = false;
+            perimeterFeedback.textContent = '';
+            perimeterFeedback.className = 'math-feedback';
+            perimeterInput.classList.remove('correct', 'incorrect');
+        }
+        
+        // Check area
+        const areaValue = parseInt(areaInput.value);
+        if (areaInput.value && !isNaN(areaValue)) {
+            if (areaValue === correctArea) {
+                areaCorrect = true;
+                areaFeedback.textContent = '✓';
+                areaFeedback.className = 'math-feedback correct';
+                areaInput.classList.add('correct');
+                areaInput.classList.remove('incorrect');
+            } else {
+                areaCorrect = false;
+                areaFeedback.textContent = '✗';
+                areaFeedback.className = 'math-feedback incorrect';
+                areaInput.classList.add('incorrect');
+                areaInput.classList.remove('correct');
+            }
+        } else {
+            areaCorrect = false;
+            areaFeedback.textContent = '';
+            areaFeedback.className = 'math-feedback';
+            areaInput.classList.remove('correct', 'incorrect');
+        }
+        
+        // Enable/disable build button
+        buildBtn.disabled = !(perimeterCorrect && areaCorrect);
+    }
+    
+    // Add input listeners
+    perimeterInput.addEventListener('input', validateInputs);
+    areaInput.addEventListener('input', validateInputs);
+    
+    // Build button handler
+    buildBtn.addEventListener('click', () => {
+        if (perimeterCorrect && areaCorrect) {
+            if (isResizing && enclosureToResize) {
+                // Update existing enclosure dimensions (already applied, just finalize)
+                // Clean up temporary properties
+                delete enclosureToResize.originalGridX;
+                delete enclosureToResize.originalGridY;
+                delete enclosureToResize.originalWidth;
+                delete enclosureToResize.originalHeight;
+                
+                renderEnclosure(enclosureToResize);
+                updateSummaryTable();
+                updateURL();
+            } else {
+                // Create new enclosure
+                addEnclosure(gridX, gridY, width, height);
+            }
+            state.pendingEnclosure = null;
+            modal.remove();
+        }
+    });
+    
+    // Close button handler - revert resize if applicable
+    const closeModal = () => {
+        if (isResizing && enclosureToResize && state.pendingEnclosure) {
+            // Revert to original dimensions
+            const original = state.pendingEnclosure.originalDimensions;
+            if (original) {
+                enclosureToResize.gridX = original.gridX;
+                enclosureToResize.gridY = original.gridY;
+                enclosureToResize.width = original.width;
+                enclosureToResize.height = original.height;
+                
+                // Clean up temporary properties
+                delete enclosureToResize.originalGridX;
+                delete enclosureToResize.originalGridY;
+                delete enclosureToResize.originalWidth;
+                delete enclosureToResize.originalHeight;
+                
+                renderEnclosure(enclosureToResize);
+                updateSummaryTable();
+                updateURL();
+            }
+        }
+        state.pendingEnclosure = null;
+        modal.remove();
+    };
+    
+    closeBtn.addEventListener('click', closeModal);
+    
+    // Click outside to close
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+    
+    // Focus first input
+    setTimeout(() => perimeterInput.focus(), 100);
 }
 
 // Create the SVG grid
@@ -1374,11 +1616,11 @@ function handleGridMouseUp(e) {
             Math.pow(e.clientY - state.moveStartPos.y, 2)
         ) : 100;
         
+        const enc = state.resizingEnclosure.enclosure;
+        const orig = state.resizingEnclosure.originalData;
+        
         // If barely moved, treat as click for delete
         if (distanceMoved < 5) {
-            const enc = state.resizingEnclosure.enclosure;
-            const orig = state.resizingEnclosure.originalData;
-            
             // Restore original
             enc.gridX = orig.gridX;
             enc.gridY = orig.gridY;
@@ -1394,6 +1636,21 @@ function handleGridMouseUp(e) {
             showConfirmDialog('Delete this enclosure?', () => {
                 deleteEnclosure(enc.id);
             }, emoji, name);
+        } else {
+            // Actual resize happened
+            if (state.mathPractice) {
+                // Show math practice modal with new dimensions
+                // Pass original dimensions so we can revert if modal is dismissed
+                enc.originalGridX = orig.gridX;
+                enc.originalGridY = orig.gridY;
+                enc.originalWidth = orig.width;
+                enc.originalHeight = orig.height;
+                showMathPracticeModal(enc.gridX, enc.gridY, enc.width, enc.height, enc.animal, enc);
+            } else {
+                // No math practice - finalize the resize
+                updateSummaryTable();
+                updateURL();
+            }
         }
         
         state.resizingEnclosure = null;
@@ -1492,8 +1749,14 @@ function handleGridMouseUp(e) {
     const hasOverlap = checkOverlap(x, y, width, height);
     
     // Only create if it has some size and doesn't overlap
-    if (width > 0 && height > 0 && !hasOverlap) {
-        addEnclosure(x, y, width, height);
+    if (width > 0 && height > 0 && !hasOverlap && state.selectedAnimal) {
+        if (state.mathPractice) {
+            // Show math practice modal
+            showMathPracticeModal(x, y, width, height, state.selectedAnimal);
+        } else {
+            // Add enclosure directly
+            addEnclosure(x, y, width, height);
+        }
     }
     
     // Clean up
